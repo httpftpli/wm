@@ -1,0 +1,6 @@
+<RCC>
+    <qresource prefix="/image">
+        <file alias="locked.png">resource/locked.png</file>
+        <file alias="unlocked.png">resource/unlocked.png</file>
+    </qresource>
+</RCC>
