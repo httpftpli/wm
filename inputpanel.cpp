@@ -19,20 +19,13 @@ inputpanel::inputpanel(QWidget *parent) :
     signalMapper.setMapping(panelButton_minu,panelButton_minu);
     signalMapper.setMapping(panelButton_del,panelButton_del);
     signalMapper.setMapping(panelButton_backspace,panelButton_backspace);
+    signalMapper.setMapping(panelButton_enter,panelButton_enter);
     signalMapper.setMapping(panelButton_a,panelButton_a);
     signalMapper.setMapping(panelButton_b,panelButton_b);
     signalMapper.setMapping(panelButton_c,panelButton_c);
     signalMapper.setMapping(panelButton_d,panelButton_d);
     signalMapper.setMapping(panelButton_e,panelButton_e);
     signalMapper.setMapping(panelButton_f,panelButton_f);
-    panelButton_a->setVisible(FALSE);
-    panelButton_b->setVisible(FALSE);
-    panelButton_c->setVisible(FALSE);
-    panelButton_d->setVisible(FALSE);
-    panelButton_e->setVisible(FALSE);
-    panelButton_f->setVisible(FALSE);
-    panelButton_star->setVisible(FALSE);
-    panelButton_minu->setVisible(FALSE);
 
     connect(panelButton_1, SIGNAL(clicked()),
           &signalMapper, SLOT(map()));
@@ -61,6 +54,8 @@ inputpanel::inputpanel(QWidget *parent) :
     connect(panelButton_del, SIGNAL(clicked()),
           &signalMapper, SLOT(map()));
     connect(panelButton_backspace, SIGNAL(clicked()),
+          &signalMapper, SLOT(map()));
+    connect(panelButton_enter, SIGNAL(clicked()),
           &signalMapper, SLOT(map()));
     connect(panelButton_a,SIGNAL(clicked()),
             &signalMapper,SLOT(map()));
