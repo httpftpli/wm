@@ -6,6 +6,7 @@
 
 
 QT       += gui
+QT       += network
 
 TARGET = windowmanager
 
@@ -13,9 +14,10 @@ TEMPLATE = app
 
 
 SOURCES += main.cpp \
-    inputpanel.cpp \
-    qinputmethod.cpp \
-    qmywsscreensaver.cpp
+#    inputpanel.cpp \
+ #    qinputmethod.cpp \
+ #    qmywsscreensaver.cpp \
+    qcomm.cpp
 
 FORMS += \
     inputpanel.ui
@@ -24,6 +26,8 @@ RESOURCES += \
     resource.qrc
 
 HEADERS += \
-    inputpanel.h \
-    qinputmethod.h \
-    qmywsscreensaver.h
+#     inputpanel.h \
+ #    qinputmethod.h \
+ #    qmywsscreensaver.h \
+    qcomm.h \
+    protocol.h
