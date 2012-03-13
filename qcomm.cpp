@@ -16,6 +16,7 @@ QCOMM::QCOMM(QObject *parent) :
     connect(udpsocket, SIGNAL(readyRead()),SLOT(readudppendingdatagrams()));
     connect(tcpsocket,SIGNAL(connected()),SLOT(ontcpsocketconneted()));
     connect(tcpsocket,SIGNAL(readyRead()),SLOT(readtcppendingdatagrams()));
+
 }
 
 void QCOMM::timerEvent(QTimerEvent *event)
@@ -24,15 +25,15 @@ void QCOMM::timerEvent(QTimerEvent *event)
         HEARTBEAT heart;
         heart.header.sizeofpack = sizeof heart;
         heart.header.magic[0] ='M';
-        heart.header.magic[0] ='D';
-        heart.header.seq = heartbeatnum;
+        heart.header.magic[1] ='D';
+        heart.header.seq = heartbeatnum++;
         heart.customerID = 0xaa;
         heart.fileterminal = hasterminalfile();
         heart.licensetimeout = islicensetimeout();
         heart.netinvade = isnetinvade();
         heart.numofpack = numberofudppack;
         heart.header.crc = qChecksum((char *)(&heart+sizeof (heart.header)),sizeof heart-sizeof (heart.header));
-        udpsend((char*)&heart,sizeof heart);
+        udpsend((char*)&heart,sizeof(heart));
     }
 }
 
@@ -54,8 +55,7 @@ void QCOMM::readudppendingdatagrams()
             continue;
         switch (heartack->funcode){
         case UDP_TCPCONNECT:{
-            unsigned int ipaddr = *(unsigned int *)(heartack->ipaddr);
-            tcpConnect(QHostAddress(ipaddr),heartack->port);
+            tcpConnect(QHostAddress(heartack->ipaddr),heartack->port);
             break;
         }
         case UDP_SSHCONNECT:{
@@ -72,6 +72,14 @@ void QCOMM::readudppendingdatagrams()
         }
     }
 }
+
+void QCOMM::ontcpdisconnected()
+{
+    if(!filetrans.isNull()){
+        delete filetrans.data();
+    }
+}
+
 
 void QCOMM::tcpConnect(QHostAddress addr, unsigned short port)
 {
@@ -148,11 +156,14 @@ void QCOMM::readtcppendingdatagrams()
             QString filename = QTextCodec::codecForName("GBK")->toUnicode(temp);
             filetrans = QPointer<FileTrans>(new FileTrans(tcpsocket,filename,filelen));
         }
+
         case TCP_FILEDATA:{
             if(!filetrans.isNull())
-               filetrans->receivData(datasize);
-            else
-               in.skipRawData(datasize);
+                filetrans->receivData(datasize);
+            else{
+                in.skipRawData(datasize);
+                qDebug("windowmanager:invalid file transmition task");
+            }
         }
         case TCP_MACHINEINFO:
 
@@ -181,7 +192,8 @@ void QCOMM::login()
     LOGIN loginpack;
     loginpack.hearder.funcode = TCP_LOGIN;
     loginpack.hearder.sizeofpack = sizeof(LOGIN);
-    loginpack.customerID = 0xaa;
+    loginpack.customerID = 0x55aa;
+    loginpack.machineID = 0;
     tcpsocket->write((char *)&loginpack,sizeof loginpack);
 }
 
@@ -267,7 +279,22 @@ FileTrans::FileTrans(QTcpSocket *tcp,const QString &filename, unsigned int filel
     out.setDevice(&file);
     out.setByteOrder(QDataStream::LittleEndian);
     this->filelen = filelen;
+    timer.setInterval(20000);
+    timer.setSingleShot(FALSE);
+    connect(&timer,SIGNAL(timeout()),SLOT(writeTransPos()));
     filetransack(pos);
+}
+
+FileTrans::~FileTrans()
+{
+    if(pos==filelen){
+        file.resize(filelen);
+        QString filename = file.fileName();
+        filename.truncate(filename.size()-3);
+        file.rename(filename);
+    }else{
+        writeTransPos();
+    }
 }
 
 bool FileTrans::isAvalid()
@@ -278,26 +305,24 @@ bool FileTrans::isAvalid()
 void FileTrans::receivData(unsigned short len)
 {
     unsigned char temp;
-    for(;pos<len+pos;pos++){
+    unsigned int postemp = pos;
+    timer.start();
+    for(;pos<len+postemp;pos++){
         in>>temp;
         out<<temp;
     }
-    if(pos==filelen){  //file transmit finish
-       file.close();
-       file.resize(filelen);
-       QString filename = file.fileName();
-       filename.truncate(filename.size()-3);
-       file.rename(filename);
-       filetransack(filelen);
-       deleteLater();
-    }else{           //file transmit not finish
-       filetransack(pos);
-    }
+    filetransack(filelen);
+    if(pos==filelen)  //file transmit finish
+        deleteLater();
 }
 
 
 void FileTrans::writeTransPos()
 {
+    if(pos==0)
+        return;
+    if(pos==readTransPos())
+        return;
     unsigned int postemp = file.pos();
     file.seek(file.size()-4);
     QDataStream str(&file);

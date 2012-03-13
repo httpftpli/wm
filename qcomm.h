@@ -8,6 +8,7 @@
 #include<QByteArray>
 #include<QPointer>
 #include<protocol.h>
+#include<QTimer>
 
 class FileTrans;
 
@@ -47,6 +48,7 @@ private slots:
     void ontcpsocketconneted();
     void readtcppendingdatagrams();
     void readudppendingdatagrams();
+    void ontcpdisconnected();
 };
 
 
@@ -55,9 +57,12 @@ class FileTrans:public QObject
     Q_OBJECT
 public :
     FileTrans(QTcpSocket *tcp,const QString &filename, unsigned int filelen);
+    ~FileTrans();
     bool isAvalid();
     void receivData(unsigned short len);
     static unsigned int readTransPos(QFile &file);
+
+private slots:
     void writeTransPos();
 private:
     QTcpSocket *ptcp;
@@ -68,6 +73,7 @@ private:
     unsigned int filelen;
     unsigned int readTransPos();
     void filetransack(unsigned int pos);
+    QTimer timer;      //timer for save  file write pos
 };
 
 #endif // QCOMM_H

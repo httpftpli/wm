@@ -5,9 +5,13 @@
 #include "qmywsscreensaver.h"
 #include "qcomm.h"
 #include "QDir"
+#include <QtGlobal>
+
+void MessageOutput(QtMsgType type, const char *msg);
 
 int main(int argc, char *argv[])
 {
+    //qInstallMsgHandler(MessageOutput);
     QApplication a(argc, argv);
     //QDir::setCurrent(QApplication::applicationDirPath());
     //QInputMethod inputmethod;
@@ -19,3 +23,5 @@ int main(int argc, char *argv[])
     //QWSServer::setScreenSaverBlockLevel(0);
     return a.exec();
 }
+
+

@@ -2,9 +2,9 @@
 #define _MD_PROTOCOL_H_
 
 
-#define UDP_DST_IP    "192.168.1.13"
-#define UDP_DST_PORT  6000
-#define UDP_SRC_PORT  4000
+#define UDP_DST_IP    "192.168.2.101"
+#define UDP_DST_PORT  6001
+#define UDP_SRC_PORT  4001
 
 
 // UDP包头定义
@@ -43,7 +43,7 @@ typedef struct {
 typedef struct {
     MDHEADER	header;
     unsigned char funcode;	   //功能码 如上
-    unsigned char ipaddr[4];   //IP地址
+    unsigned int  ipaddr;   //IP地址
     unsigned short port;       //port
 } HEARTBEATRESULT, *PHEARTBEATRESULT;
 #pragma pack(0)
@@ -117,5 +117,6 @@ typedef struct {
     unsigned long pos;		// 数据所在位置 0：表示新文件，POS==filesize表示传送完成，-1表示出错
 } FILEDATAACK, *PFILEDATAACK;
 #pragma pack()
+
 
 #endif // PROTOCAL_H

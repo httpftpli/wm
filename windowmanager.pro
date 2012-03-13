@@ -17,7 +17,8 @@ SOURCES += main.cpp \
 #    inputpanel.cpp \
  #    qinputmethod.cpp \
  #    qmywsscreensaver.cpp \
-    qcomm.cpp
+    qcomm.cpp \
+    msgoutput.cpp
 
 FORMS += \
     inputpanel.ui
