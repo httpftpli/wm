@@ -10,6 +10,13 @@
 #include<protocol.h>
 #include<QTimer>
 
+#define ntohl(A)        ((((unsigned long)(A) & 0xff000000) >> 24) | \
+(((unsigned long)(A) & 0x00ff0000) >> 8) | \
+(((unsigned long)(A) & 0x0000ff00) << 8) | \
+(((unsigned long)(A) & 0x000000ff) << 24))
+#define  htonl(A) ntohl(A)
+
+
 class FileTrans;
 
 class QCOMM : public QObject
@@ -38,7 +45,7 @@ private:
     QUdpSocket *udpsocket;
     QTcpSocket *tcpsocket;
     int timerid;
-    int nexttcpblocksize;
+    unsigned short nexttcpblocksize;
     unsigned int heartbeatnum;
     unsigned int numberofudppack;
     QPointer<FileTrans> filetrans;

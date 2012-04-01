@@ -2,9 +2,8 @@
 #define _MD_PROTOCOL_H_
 
 
-#define UDP_DST_IP    "192.168.2.101"
+#define UDP_DST_IP    "192.168.1.113"
 #define UDP_DST_PORT  6001
-#define UDP_SRC_PORT  4001
 
 
 // UDP包头定义
@@ -56,13 +55,13 @@ typedef struct {
 #define TCP_LOGIN           0x01
 #define TCP_LOGOUT          0x02
 #define TCP_FILETRANSFER    0x03    // 文件传送数据
-#define TCP_FILEDATA        0x04    // 请求文件传送
 #define TCP_MACHINEINFO		0x11	// 查询机器详细信息
 #define TCP_STARTPLAY		0x21	// 开始播放
 #define TCP_STOPPLAY		0x22	// 停止播放
 #define TCP_DOWNLOADFILE	0x31	// 下载文件到机器
-#define TCP_MEDIAFILELIST	0x41	// 获取媒体文件列表
-#define TCP_SCRIPTLIST		0x42	// 脚本列表
+#define TCP_FILELIST    	0x41	// 获取媒体文件列表
+
+
 
 #pragma pack(1)
 typedef struct {
@@ -94,8 +93,7 @@ typedef struct {
 typedef struct {
     TCPHEARDER header;
     unsigned int filesize;   //文件长度
-    unsigned int pos;        //文件位置  用于机器报告断点文件 ，
-    char		fileName[2]; // 文件名
+    char		fileName[256]; // 文件名
 } FILETRANSFER, *PFILETRANSFER;
 #pragma pack()
 
@@ -118,5 +116,38 @@ typedef struct {
 } FILEDATAACK, *PFILEDATAACK;
 #pragma pack()
 
+#pragma pack(1)
+typedef struct{
+  TCPHEARDER header;
+} FILELIST;
+#pragma pack()
+
+#pragma pack(1)
+typedef struct{
+  TCPHEARDER header;
+  char filenamelist[512];
+} FILELISTACK;
+#pragma pack()
+
+#pragma pack(1)
+typedef struct{
+  TCPHEARDER header;
+  unsigned char play; //0:播放文件，1：播放脚本
+  char filename[128]; //如play==0，filename表示文件名
+} PLAY;
+#pragma pack()
+
+#pragma pack(1)
+typedef struct{
+  TCPHEARDER header;
+  unsigned char ack; //0:播放开始 1：播放错误
+} LAYACK;
+#pragma pack()
+
+#pragma pack(1)
+typedef struct{
+  TCPHEARDER header;
+} STOPPLAY;
+#pragma pack()
 
 #endif // PROTOCAL_H

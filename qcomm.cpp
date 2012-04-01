@@ -5,12 +5,15 @@
 #include<protocol.h>
 #include<QDir>
 #include<QTextCodec>
+#include<stddef.h>
+#include<string.h>
+
 
 QCOMM::QCOMM(QObject *parent) :
     QObject(parent),udpsocket(new QUdpSocket(this)),tcpsocket(new QTcpSocket(this)),heartbeatnum(1)
-  ,filetrans(NULL)
+  ,filetrans(NULL),nexttcpblocksize(0)
 {
-    udpsocket->bind(UDP_SRC_PORT);
+    udpsocket->connectToHost(UDP_DST_IP,6001,QIODevice::ReadWrite);
     timerid = startTimer(1000);
     tcpsocket->setSocketOption(QAbstractSocket::LowDelayOption,1);
     connect(udpsocket, SIGNAL(readyRead()),SLOT(readudppendingdatagrams()));
@@ -41,7 +44,7 @@ void QCOMM::readudppendingdatagrams()
 {
     char data[512];
     while(udpsocket->hasPendingDatagrams()){
-        unsigned int len = udpsocket->readDatagram(data,512);
+        unsigned int len = udpsocket->read(data,512);
         if(len<sizeof(MDHEADER))
             continue;
         HEARTBEATRESULT *heartack = (HEARTBEATRESULT *)data;
@@ -50,12 +53,13 @@ void QCOMM::readudppendingdatagrams()
         unsigned short packsize = heartack->header.sizeofpack;
         if (packsize<len)
             continue;
-        if(heartack->header.crc!=qChecksum((char *)&(heartack->funcode),
-                                           len-sizeof (heartack->header)))
-            continue;
+        //if(heartack->header.crc!=qChecksum((char *)&(heartack->funcode),
+        //                                   len-sizeof (heartack->header)))
+        //    continue;
         switch (heartack->funcode){
         case UDP_TCPCONNECT:{
-            tcpConnect(QHostAddress(heartack->ipaddr),heartack->port);
+            QHostAddress addr(ntohl(heartack->ipaddr));
+            tcpConnect(addr,heartack->port);
             break;
         }
         case UDP_SSHCONNECT:{
@@ -75,6 +79,7 @@ void QCOMM::readudppendingdatagrams()
 
 void QCOMM::ontcpdisconnected()
 {
+    qDebug("tcp disconneted");
     if(!filetrans.isNull()){
         delete filetrans.data();
     }
@@ -85,6 +90,7 @@ void QCOMM::tcpConnect(QHostAddress addr, unsigned short port)
 {
     if(tcpsocket->state()!=QAbstractSocket::ConnectedState){
         tcpsocket->abort();
+        qDebug()<<"tcp connnet to:"<<addr.toString();
         tcpsocket->connectToHost(addr,port);
     }
 }
@@ -96,7 +102,7 @@ void QCOMM::sshConnect(QHostAddress addr, unsigned short port)
 
 void QCOMM::reportpendingfiletras()
 {
-    if(hasterminalfile()){
+    /*if(hasterminalfile()){
         QDir dir("./");
         QStringList list = dir.entryList(QStringList()<<"*.TD",QDir::Files);
         QByteArray filename;
@@ -116,15 +122,14 @@ void QCOMM::reportpendingfiletras()
         file.close();
         tcpsocket->write((char *)filetransfer,filetransfer->header.sizeofpack);
         free(filetransfer);
-    }
+    }*/
 }
 
 void QCOMM::ontcpsocketconneted()
 {
-    qDebug("tcpconneted");
+    qDebug("tcpconneted logining");
     login();
-    reportpendingfiletras();
-
+    //reportpendingfiletras();
 }
 
 void QCOMM::readtcppendingdatagrams()
@@ -139,47 +144,56 @@ void QCOMM::readtcppendingdatagrams()
                 break;
             in>>nexttcpblocksize;
         }
-        if(nexttcpblocksize>1024*1024){
-            nexttcpblocksize = 0;
-            tcpsocket->abort();
-        }
-        if(tcpsocket->bytesAvailable()<nexttcpblocksize)
+        if(tcpsocket->bytesAvailable()<(nexttcpblocksize-2))
             break;
+        int tcpblocksize = nexttcpblocksize;
+        nexttcpblocksize = 0;
+
         in>>funcode;
-        unsigned short  datasize= nexttcpblocksize-sizeof(TCPHEARDER);
+        Q_ASSERT(sizeof(TCPHEARDER)==4);
+        unsigned short  datasize= tcpblocksize-sizeof(TCPHEARDER);
         switch(funcode){
-        case TCP_FILETRANSFER:{
-            unsigned int filelen,filepos;
-            in>>filelen>>filepos;
-            char temp[datasize-8];
-            in.readRawData(temp,datasize-8);
+        case TCP_DOWNLOADFILE:{
+            unsigned int filelen;
+            in>>filelen;
+            char temp[datasize-4];
+            in.readRawData(temp,datasize-4);
             QString filename = QTextCodec::codecForName("GBK")->toUnicode(temp);
+            qDebug()<<"be required to receive file \""<<filename<<"\";"<<"filelen:"<<filelen;
             filetrans = QPointer<FileTrans>(new FileTrans(tcpsocket,filename,filelen));
+            break;
         }
 
-        case TCP_FILEDATA:{
+        case TCP_FILETRANSFER:{
             if(!filetrans.isNull())
                 filetrans->receivData(datasize);
             else{
                 in.skipRawData(datasize);
                 qDebug("windowmanager:invalid file transmition task");
             }
+            break;
         }
         case TCP_MACHINEINFO:
 
             break;
+        case TCP_FILELIST:{
+            QDir dir("./media");
+            QStringList list = dir.entryList(QStringList());
+            QByteArray filenames = list.join(":").toUtf8();
+            unsigned short lenofack = sizeof(TCPHEARDER)+filenames.size();
+            FILELISTACK *ack = (FILELISTACK*)malloc(lenofack);
+            ack->header.sizeofpack = sizeof(TCPHEARDER)+filenames.size();
+            ack->header.funcode = TCP_FILELIST;
+            qMemCopy(ack->filenamelist,filenames.data(),filenames.size());
+            tcpsocket->write((char*)ack,lenofack);
+            free(ack);
+            break;
+        }
         case TCP_STARTPLAY:
 
             break;
         case TCP_STOPPLAY:
 
-            break;
-        case TCP_DOWNLOADFILE:
-
-            break;
-        case TCP_MEDIAFILELIST:
-            break;
-        case TCP_SCRIPTLIST:
             break;
         default:
             break;
@@ -199,7 +213,7 @@ void QCOMM::login()
 
 bool QCOMM::hasterminalfile()
 {
-    QDir dir("./");
+    QDir dir("./media");
     QStringList list = dir.entryList(QStringList()<<"*.TD",QDir::Files);
     if(list.isEmpty())
         return FALSE;
@@ -227,8 +241,7 @@ bool QCOMM::checkMdHeart(MDHEADER heard)
 
 qint64 QCOMM::udpsend(const char *data, qint64 size)
 {
-    return udpsocket->writeDatagram(data,size,
-                                    QHostAddress(UDP_DST_IP),UDP_DST_PORT);
+    return udpsocket->write(data,size);
 }
 
 QByteArray QCOMM::md5(QFile &file)
@@ -257,12 +270,15 @@ QByteArray QCOMM::md5(QFile &file)
 
 FileTrans::FileTrans(QTcpSocket *tcp,const QString &filename, unsigned int filelen):ptcp(tcp),pos(0)
 {
-    file.setFileName(filename+".TD");
+    file.setFileName("media/"+filename);
+    if(file.exists())
+        file.remove();
+    file.setFileName("media/"+filename+".TD");
     bool fileexit;
-    if(filelen<40*1024*1024){
+    if(filelen>40*1024*1024){
         return;
     }
-    if(file.exists()&&(file.size()==filelen))
+    if(file.exists()&&(file.size()==filelen-4))
         fileexit = TRUE;
     if(!file.open(QIODevice::ReadWrite)){
         return;
@@ -366,7 +382,7 @@ void FileTrans::filetransack(unsigned int pos)
 {
     FILEDATAACK ack;
     ack.header.sizeofpack = sizeof(ack);
-    ack.header.funcode = TCP_FILEDATA;
+    ack.header.funcode = TCP_FILETRANSFER;
     ack.pos = pos;
     ptcp->write((char *)&ack,sizeof ack);
 }
