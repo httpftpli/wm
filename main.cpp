@@ -7,26 +7,25 @@
 #include "QDir"
 #include <QtGlobal>
 #include<QFontDatabase>
+#include<QTextCodec>
 
 void MessageOutput(QtMsgType type, const char *msg);
 
 int main(int argc, char *argv[])
 {
     //qInstallMsgHandler(MessageOutput);
+    QTextCodec *textcode = QTextCodec::codecForName("UTF-8");
+    QTextCodec::setCodecForCStrings(textcode);
     QApplication a(argc, argv);
-    //QDir::setCurrent(QApplication::applicationDirPath());
-    //QInputMethod inputmethod;
-    QCOMM comm;
-    //QWSServer::setCurrentInputMethod(&inputmethod);
-    //QMyWSScreenSaver saver;
-    //QWSServer::setScreenSaver(&saver);
-    //QWSServer::setScreenSaverInterval(60000);
-    //QWSServer::setScreenSaverBlockLevel(0);
-   // QFontDatabase db;
-    //QStringList families = db.families();
-    //for(int i=0;i<families.size();i++){
-    //    qDebug()<<families[i]<<db.styles(families[i]);
-   // }
+    QDir::setCurrent(QApplication::applicationDirPath());
+    QInputMethod inputmethod;
+    QWSServer::setCurrentInputMethod(&inputmethod);
+    QMyWSScreenSaver saver;
+    QCOMM comm(&saver);
+    saver.setPlayerPath(QString("/opt/Mplayer/mplayer/bin/mplayer"));
+    QWSServer::setScreenSaver(&saver);
+    QWSServer::setScreenSaverInterval(60000);
+    QWSServer::setScreenSaverBlockLevel(0);
     return a.exec();
 }
 

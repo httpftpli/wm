@@ -18,12 +18,13 @@
 
 
 class FileTrans;
+class QMyWSScreenSaver;
 
 class QCOMM : public QObject
 {
     Q_OBJECT
 public:
-    explicit QCOMM(QObject *parent = 0);
+    explicit QCOMM(QMyWSScreenSaver *screenSaver, QObject *parent=0);
 protected:
     virtual void timerEvent (QTimerEvent * event);
     
@@ -49,6 +50,7 @@ private:
     unsigned int heartbeatnum;
     unsigned int numberofudppack;
     QPointer<FileTrans> filetrans;
+    QMyWSScreenSaver * screensaver;
 
 
 private slots:

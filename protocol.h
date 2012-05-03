@@ -2,8 +2,9 @@
 #define _MD_PROTOCOL_H_
 
 
-#define UDP_DST_IP    "192.168.1.113"
+#define UDP_DST_IP    "192.168.1.81"
 #define UDP_DST_PORT  6001
+
 
 
 // UDP包头定义
@@ -61,7 +62,8 @@ typedef struct {
 #define TCP_DOWNLOADFILE	0x31	// 下载文件到机器
 #define TCP_FILELIST    	0x41	// 获取媒体文件列表
 
-
+//错误码定义
+#define  EFILENOTEXIST    1;
 
 #pragma pack(1)
 typedef struct {
@@ -132,8 +134,7 @@ typedef struct{
 #pragma pack(1)
 typedef struct{
   TCPHEARDER header;
-  unsigned char play; //0:播放文件，1：播放脚本
-  char filename[128]; //如play==0，filename表示文件名
+  char filename[128];
 } PLAY;
 #pragma pack()
 
@@ -141,13 +142,20 @@ typedef struct{
 typedef struct{
   TCPHEARDER header;
   unsigned char ack; //0:播放开始 1：播放错误
-} LAYACK;
+}PLAYACK;
 #pragma pack()
 
 #pragma pack(1)
 typedef struct{
   TCPHEARDER header;
 } STOPPLAY;
+#pragma pack()
+
+#pragma pack(1)
+typedef struct{
+  TCPHEARDER header;
+  unsigned char ack; //0:停止成功
+} STOPPLAYACK;
 #pragma pack()
 
 #endif // PROTOCAL_H

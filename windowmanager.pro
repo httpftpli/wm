@@ -12,13 +12,17 @@ TARGET = windowmanager
 
 TEMPLATE = app
 
+CONFIG += qt debug warn_on
 
 SOURCES += main.cpp \
 #    inputpanel.cpp \
  #    qinputmethod.cpp \
  #    qmywsscreensaver.cpp \
     qcomm.cpp \
-    msgoutput.cpp
+    msgoutput.cpp \
+    qinputmethod.cpp \
+    qmywsscreensaver.cpp \
+    inputpanel.cpp
 
 FORMS += \
     inputpanel.ui
@@ -31,4 +35,12 @@ HEADERS += \
  #    qinputmethod.h \
  #    qmywsscreensaver.h \
     qcomm.h \
-    protocol.h
+    protocol.h \
+    qinputmethod.h \
+    qmywsscreensaver.h \
+    inputpanel.h
+
+contains(MEEGO_EDITION,harmattan) {
+    target.path = /opt/windowmanager/bin
+    INSTALLS += target
+}

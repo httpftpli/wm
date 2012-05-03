@@ -12,10 +12,20 @@ public:
     virtual	~QMyWSScreenSaver ();
     virtual void restore ();
     virtual bool save (int level);
+    bool play(const QString &filename = QString());
+    void setPlayerPath(const QString &path);
+    void stopPlay();
+    void setPlayFileName(const QString &filename);
+    void clearPlayFileName();
 
 private:
     QWidget widget;
     QProcess *myProcess;
+    QString playerpath;
+    QString  playfilename;
+    bool playfilelist();
+    bool playsinglefile(const QString &filename);
+    bool ismediafileexist(const QString &filename);
 };
 
 #endif // QMYWSSCREENSAVER_H

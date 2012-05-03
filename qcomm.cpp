@@ -7,11 +7,12 @@
 #include<QTextCodec>
 #include<stddef.h>
 #include<string.h>
+#include<qmywsscreensaver.h>
 
 
-QCOMM::QCOMM(QObject *parent) :
+QCOMM::QCOMM(QMyWSScreenSaver *screenSaver,QObject *parent) :
     QObject(parent),udpsocket(new QUdpSocket(this)),tcpsocket(new QTcpSocket(this)),heartbeatnum(1)
-  ,filetrans(NULL),nexttcpblocksize(0)
+  ,filetrans(NULL),nexttcpblocksize(0),screensaver(screenSaver)
 {
     udpsocket->connectToHost(UDP_DST_IP,6001,QIODevice::ReadWrite);
     timerid = startTimer(1000);
@@ -19,6 +20,7 @@ QCOMM::QCOMM(QObject *parent) :
     connect(udpsocket, SIGNAL(readyRead()),SLOT(readudppendingdatagrams()));
     connect(tcpsocket,SIGNAL(connected()),SLOT(ontcpsocketconneted()));
     connect(tcpsocket,SIGNAL(readyRead()),SLOT(readtcppendingdatagrams()));
+    connect(tcpsocket,SIGNAL(disconnected()),SLOT(ontcpdisconnected()));
 
 }
 
@@ -88,16 +90,16 @@ void QCOMM::ontcpdisconnected()
 
 void QCOMM::tcpConnect(QHostAddress addr, unsigned short port)
 {
-    if(tcpsocket->state()!=QAbstractSocket::ConnectedState){
         tcpsocket->abort();
         qDebug()<<"tcp connnet to:"<<addr.toString();
         tcpsocket->connectToHost(addr,port);
-    }
 }
 
 void QCOMM::sshConnect(QHostAddress addr, unsigned short port)
 {
-
+    //TODO:sshConnect
+    Q_UNUSED(addr);
+    Q_UNUSED(port);
 }
 
 void QCOMM::reportpendingfiletras()
@@ -156,9 +158,8 @@ void QCOMM::readtcppendingdatagrams()
         case TCP_DOWNLOADFILE:{
             unsigned int filelen;
             in>>filelen;
-            char temp[datasize-4];
-            in.readRawData(temp,datasize-4);
-            QString filename = QTextCodec::codecForName("GBK")->toUnicode(temp);
+            QByteArray filenameRaw =  tcpsocket->read(datasize-4);
+            QString filename(filenameRaw);
             qDebug()<<"be required to receive file \""<<filename<<"\";"<<"filelen:"<<filelen;
             filetrans = QPointer<FileTrans>(new FileTrans(tcpsocket,filename,filelen));
             break;
@@ -178,7 +179,7 @@ void QCOMM::readtcppendingdatagrams()
             break;
         case TCP_FILELIST:{
             QDir dir("./media");
-            QStringList list = dir.entryList(QStringList());
+            QStringList list = dir.entryList(QDir::NoDotAndDotDot|QDir::Files );
             QByteArray filenames = list.join(":").toUtf8();
             unsigned short lenofack = sizeof(TCPHEARDER)+filenames.size();
             FILELISTACK *ack = (FILELISTACK*)malloc(lenofack);
@@ -189,12 +190,30 @@ void QCOMM::readtcppendingdatagrams()
             free(ack);
             break;
         }
-        case TCP_STARTPLAY:
-
+        case TCP_STARTPLAY:{
+            QByteArray rawfilename  = tcpsocket->read(datasize);
+            QString filename(rawfilename);
+            PLAYACK ack;
+            ack.header.funcode = TCP_STARTPLAY;
+            ack.header.sizeofpack = sizeof(ack);
+            screensaver->setPlayFileName(filename);
+            if(QWSServer::screenSaverActive())
+                QWSServer::screenSaverActivate(FALSE);
+            QWSServer::screenSaverActivate(TRUE);
+            if(QWSServer::screenSaverActive())
+                ack.ack = 0;
+            else
+                ack.ack = -EFILENOTEXIST
+            tcpsocket->write((char*)&ack,sizeof(ack));
+        }
+        case TCP_STOPPLAY:{
+            STOPPLAYACK ack;
+            ack.header.funcode = TCP_STOPPLAY;
+            ack.header.sizeofpack = sizeof(ack);
+            ack.ack = 0;
+            tcpsocket->write((char*)&ack,sizeof(ack));
             break;
-        case TCP_STOPPLAY:
-
-            break;
+        }
         default:
             break;
         }
